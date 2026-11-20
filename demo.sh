@@ -2,6 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mkdir -p ./code
 cd ./code
 
 # Three websites

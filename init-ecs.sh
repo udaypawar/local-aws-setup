@@ -4,7 +4,7 @@ set -eu
 
 ENDPOINT="${AWS_ENDPOINT_URL:-http://ministack:4566}"
 CLUSTER="jj-cluster"
-ALB_NAME="jj-alb"
+ALB_NAME="alb1"
 
 aws_local() {
   aws --endpoint-url="$ENDPOINT" "$@"
