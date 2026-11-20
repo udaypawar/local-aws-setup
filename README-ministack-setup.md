@@ -8,7 +8,7 @@ This guide covers the MiniStack v1.5.41 development stack in `~/setup` (WSL/Linu
 
 - Docker Engine or Docker Desktop with the desired WSL distribution enabled.
 - Docker Compose v2; `curl` for HTTP testing.
-- AWS CLI v2 on your WSL/Linux host for the full S3 and SQS smoke tests; optional `psql` (PostgreSQL client) and `jq`.
+- AWS CLI v2 on youfr WSL/Linux host for the full S3 and SQS smoke tests; optional `psql` (PostgreSQL client) and `jq`.
 - A real file at `nginx/local-gateway.conf` (not a directory).
 - Ten previously built application images: `web-1:local`, `web-2:local`, `web-3:local`, and `api-1:local` through `api-7:local`.
 
@@ -72,7 +72,7 @@ export AWS_ENDPOINT_URL=http://127.0.0.1:4566
 aws --endpoint-url="$AWS_ENDPOINT_URL" sts get-caller-identity
 ```
 
-All `aws` commands below are for the **WSL/Linux host** with AWS CLI installed. If you do not have AWS CLI on the host, use the bundled CLI container for API *inspection*:
+All `aws` commands below are for the **WSL/Linux host** with AWS CLI installed. If you do not have AWS CLI on the host, use the bundled CLI container for API _inspection_:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint aws ministack-init \
@@ -88,11 +88,11 @@ For PowerShell, use `$env:AWS_ACCESS_KEY_ID='000000000000'`, `$env:AWS_SECRET_AC
 aws --endpoint-url="$AWS_ENDPOINT_URL" ecs list-clusters
 
 # All 10 services
-aws --endpoint-url="$AWS_ENDPOINT_URL" ecs list-services --cluster jj-cluster
+aws --endpoint-url="$AWS_ENDPOINT_URL" ecs list-services --cluster my-cluster
 
 # Requested vs running task counts for every service
 aws --endpoint-url="$AWS_ENDPOINT_URL" ecs describe-services \
-  --cluster jj-cluster \
+  --cluster my-cluster \
   --services web-1-svc web-2-svc web-3-svc \
     api-1-svc api-2-svc api-3-svc api-4-svc api-5-svc api-6-svc api-7-svc \
   --query 'services[].{Name:serviceName,Desired:desiredCount,Running:runningCount,Pending:pendingCount}' \
@@ -100,7 +100,7 @@ aws --endpoint-url="$AWS_ENDPOINT_URL" ecs describe-services \
 
 # Running task ARNs
 aws --endpoint-url="$AWS_ENDPOINT_URL" ecs list-tasks \
-  --cluster jj-cluster --service-name api-1-svc
+  --cluster my-cluster --service-name api-1-svc
 
 # Task definition (includes the API environment variable names)
 aws --endpoint-url="$AWS_ENDPOINT_URL" ecs describe-task-definition \
@@ -115,7 +115,7 @@ To redeploy **only api-1** after rebuilding its image:
 ```bash
 docker compose --profile build-only build api-1
 aws --endpoint-url="$AWS_ENDPOINT_URL" ecs update-service \
-  --cluster jj-cluster --service api-1-svc --force-new-deployment
+  --cluster my-cluster --service api-1-svc --force-new-deployment
 ```
 
 Verify the new container actually uses the rebuilt local image; MiniStack's local-image-cache behavior is emulator-specific.
@@ -338,17 +338,17 @@ Persistence is configured by `PERSIST_STATE=1`, `S3_PERSIST=1`, `RDS_PERSIST=1` 
 
 ## 10. Troubleshooting quick reference
 
-| Symptom | Check | Likely interpretation |
-|---|---|---|
-| Nginx mount error (`not a directory`) | `ls -ld nginx/local-gateway.conf` | File missing, or Docker created a directory at the mount source |
-| HTTP 502 | `docker logs s3-local-gateway` | Gateway cannot reach/resolve `ministack:4566`; check `resolver 127.0.0.11` |
-| S3 XML at `www.jj1.com` | Confirm Nginx owns host port 80 | Request bypassed gateway and fell into MiniStack S3 fallback |
-| `Route not found` from `awselb/2.0` | Inspect ALB listener rules | ALB reached but host/path rule did not match |
-| ECS service exists but app fails | `ecs describe-services`, task events | Task not running, image cache or target problems |
-| RDS port refused | `rds describe-db-instances`, `docker ps` | DB not ready or wrong host/port |
-| S3 bucket missing | `s3api list-buckets`, initializer logs | Bucket provisioner failed or state was reset |
-| SQS queue missing | `sqs list-queues`, initializer logs | Queue provisioner failed or state was reset |
-| Port 80 in use | `docker ps`, `ss -ltnp` / `netstat` | Another service or another Compose project occupies port 80 |
+| Symptom                               | Check                                    | Likely interpretation                                                      |
+| ------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
+| Nginx mount error (`not a directory`) | `ls -ld nginx/local-gateway.conf`        | File missing, or Docker created a directory at the mount source            |
+| HTTP 502                              | `docker logs s3-local-gateway`           | Gateway cannot reach/resolve `ministack:4566`; check `resolver 127.0.0.11` |
+| S3 XML at `www.jj1.com`               | Confirm Nginx owns host port 80          | Request bypassed gateway and fell into MiniStack S3 fallback               |
+| `Route not found` from `awselb/2.0`   | Inspect ALB listener rules               | ALB reached but host/path rule did not match                               |
+| ECS service exists but app fails      | `ecs describe-services`, task events     | Task not running, image cache or target problems                           |
+| RDS port refused                      | `rds describe-db-instances`, `docker ps` | DB not ready or wrong host/port                                            |
+| S3 bucket missing                     | `s3api list-buckets`, initializer logs   | Bucket provisioner failed or state was reset                               |
+| SQS queue missing                     | `sqs list-queues`, initializer logs      | Queue provisioner failed or state was reset                                |
+| Port 80 in use                        | `docker ps`, `ss -ltnp` / `netstat`      | Another service or another Compose project occupies port 80                |
 
 To see detailed initialization errors:
 
@@ -360,15 +360,15 @@ docker logs s3-local-gateway --tail=100
 
 ## 11. Expected service checklist
 
-| Service | Expected validation |
-|---|---|
-| MiniStack | Health endpoint responds |
-| ECS | 1 cluster, 10 services, desired/running counts match |
-| ALB | `alb1` listener and routing rules exist |
-| Websites | `www.jj1.com/` and `www.jj2.com/` respond through Nginx. `www.jj3.com/` responds through the ALB directly. |
-| APIs | `api.jj.com/api-1/` responds correctly |
-| Route 53 | Three zones with ALB A aliases |
-| RDS PostgreSQL | DB available; SQL create/read/delete succeeds |
-| S3 | Both buckets exist; object upload/download/delete succeeds |
-| SQS | Work queue and DLQ exist; send/receive/delete succeeds |
-| Boot/persistence | Restart restores services and retained test data as supported |
+| Service          | Expected validation                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| MiniStack        | Health endpoint responds                                                                                   |
+| ECS              | 1 cluster, 10 services, desired/running counts match                                                       |
+| ALB              | `alb1` listener and routing rules exist                                                                    |
+| Websites         | `www.jj1.com/` and `www.jj2.com/` respond through Nginx. `www.jj3.com/` responds through the ALB directly. |
+| APIs             | `api.jj.com/api-1/` responds correctly                                                                     |
+| Route 53         | Three zones with ALB A aliases                                                                             |
+| RDS PostgreSQL   | DB available; SQL create/read/delete succeeds                                                              |
+| S3               | Both buckets exist; object upload/download/delete succeeds                                                 |
+| SQS              | Work queue and DLQ exist; send/receive/delete succeeds                                                     |
+| Boot/persistence | Restart restores services and retained test data as supported                                              |
